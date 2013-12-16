@@ -1,4 +1,9 @@
-# Animating a Binary Search Tree using Python, GraphViz, and ffmeg utility
+# Animate a Binary Search Tree using Python, GraphViz, and ffmeg utility
+# Input: A binary search tree with a known root node
+# Output: This demo sofware presents two forms of graphic animation,
+#         1) A png graphic image file showing the tree structure, or 
+#         2) A series of png images to create video animations.
+
 # Project home: http://www.embeddedcomponents.com/blogs/2013/12/visualizing-software-tree-structures/
 
 # Inspired by MITx 6.00.1x "Introduction to Computer Science and Programming"
@@ -32,6 +37,23 @@
 # The following phyton modules are used for display of individual PNG images:
 #   Tkinter: standard python GUI: https://wiki.python.org/moin/TkInter
 #   Image and ImageTk: the python image library: http://www.pythonware.com/products/pil/ 
+
+# History:
+#   Initial project published on 12/11/2013
+#   Rev 1: 12/16/2013
+#       1) Improve automated tree graphic image design so that no node is displayed directly below its parent. 
+#            a) add invisible nodes, and invisible edges as placeholders to replace leaves that are not in the tree definition,
+#            b) change the default weight of edges to zero, so that displayed trees have freedom to spread out on the canvas.
+#       2) Redesign the draw() method to support automated inclusion of invisible nodes when a left or right sibling is missing from tree,
+#           remove automated display of "root", "node", and "leaf" in the node label.
+#       3) Redesign search routines BFS, and DEF so that drawing of graphic image information is not mixed in. 
+#            Now new search routines can be designed solely on the merits of search.
+#       4) Add a new search routine: DFSOrdered.
+#       5) Add a new drawing routine: sketchTree.
+#           This routine adds the drawing information previously mixed into the search routines.
+#           Use this routine once to draw the full tree image during initialization.
+#       6) Change method blinkNodeTraversed color scheme to show a history of nodes searched in a new color
+#       7) Improve comments for accuracy.
 
 
 
@@ -91,6 +113,9 @@ n7.setParent(n6)
 n4.setLeftBranch(n3)
 n3.setParent(n4)
 
+#n3.setLeftBranch(n5)
+n5.setParent(n3)
+
 
 #############################################################
 # Graph tree as a png file - an object with helper functions
@@ -113,64 +138,83 @@ class visualizeTree(object):
         self.nodeNames = {}      # store each node name (key) with each node's pyDot object (value)
         self.fullFileName = ""   # store the current full file name for png images
 
-    # allow user to change the number of duplicate png images to generate (ie stretch or shrink video time)        
+    # Method to control the number of duplicate png images to generate (ie stretch or shrink video time)        
     def setVidFrames(self, vidFrames):
         self.vidFrames = vidFrames
 
-    # Find is string representing the node to search and highlight, or None to display full binary tree 
-    # Returns True if node is found, or False if node is not found, or False when drawing the full tree (not searching)  
-    def searchTree(self, root, method, find=None):
+    # Method to search a binary tree
+    # Input:
+    #     searchMethod is a helper function that defines the type of search to perform, 
+    #        current examples implemented: DFS, BFS, and DFSOrdered
+    #     find is string representing the node to search and highlight, or None to display full binary tree 
+    # Output:
+    #     True if node is found, or False if node is not found, or False when drawing the full tree (not searching)  
+    def searchTree(self, root, searchMethod, find=None):
         self.treeList = [root]
         while len(self.treeList) > 0:
             node = self.treeList.pop(0)
+            # print str(node) # activate to display nodes searched when debug needed
             if find==str(node):
                 self.highlightNodeFound(str(node))
                 return True
             elif find!=None:
                 self.blinkNodeTraversed(str(node))            
-            method(node, self.treeList, self.draw, find)    
+            searchMethod(node, self.treeList, find, self.draw)    
         return False
 
-    # Function to draw a node and an edge of a Binary Tree
-    def draw(self, parent_name, child_name, fill_color="grey"):
-    
-        edge = pydot.Edge(parent_name, child_name)
-        graph.add_edge(edge)     
+    # Method to draw a node and an edge of a Binary Tree
+    # Input:
+    #   parent_name is a string lable identifying the parent node to draw (if not drawn already)
+    #   child_name is a string lable identifying the child node to draw
+    #   fill_color is the color to fill nodes drawn
+    #   style_type is either "filled" for normal drawing of tree nodes, or "invisible" for drawing nodes not part of tree
+    def draw(self, parent_name, child_name, fill_color="grey", style_type='filled'):
+                   
+        if style_type=="invisible":
+            # save original edge defaults
+            saveEdgeDefaults = graph.get_edge_defaults()[0]
+            graph.set_edge_defaults(style=style_type, color="white", arrowhead="none")         
+        edge = pydot.Edge(parent_name, child_name, style=style_type)
+        graph.add_edge(edge)  
+        if style_type=="invisible":
+            # restore original edge defaults
+            graph.set_edge_defaults(**saveEdgeDefaults)        
 
         if not self.nodeNames:
             # root node identified (the top most tree element)
-            self.nodeNames[parent_name] = pydot.Node(parent_name, label="Root: " + parent_name, fillcolor=fill_color)
+            self.nodeNames[parent_name] = pydot.Node(parent_name, label=parent_name, fillcolor=fill_color, style=style_type)
             graph.add_node(self.nodeNames[parent_name]) 
-        if (parent_name not in self.nodeNames) or ("Leaf:" in graph.obj_dict['nodes'][parent_name][0]['attributes']['label']):
+        if (parent_name not in self.nodeNames):
             # node (a tree element with leaves) identified       
-            self.nodeNames[parent_name] = pydot.Node(parent_name, label="Node: " + parent_name, fillcolor=fill_color)
+            self.nodeNames[parent_name] = pydot.Node(parent_name, label=parent_name, fillcolor=fill_color, style=style_type)
             graph.add_node(self.nodeNames[parent_name])
         if child_name not in self.nodeNames:
             # leaf element identified (a parent with no children) 
-            self.nodeNames[child_name] = pydot.Node(child_name, label="Leaf: " + child_name, fillcolor=fill_color)
+            self.nodeNames[child_name] = pydot.Node(child_name, label=child_name, fillcolor=fill_color, style=style_type)
             graph.add_node(self.nodeNames[child_name])
               
-    # Function to animate the found node in a search tree        
+    # Method to animate the found node in a search tree        
     def highlightNodeFound(self, node):
         graph.add_node(pydot.Node(node, fillcolor="green"))
         self.updateGraph()      
 
-    # Function to animate a node being traversed in a search tree    
+    # Method to animate a node being traversed in a search tree    
     def blinkNodeTraversed(self, node):
         graph.add_node(pydot.Node(node, fillcolor="red"))
         self.updateGraph()
-        graph.add_node(pydot.Node(node, fillcolor="grey"))
+        # use a redish grey color #cc9999 to show a breadcrumb to searched nodes in tree
+        graph.add_node(pydot.Node(node, fillcolor="#cc9999"))
         self.updateGraph()        
         
-    # set the file name based on directory, name, count and extension in support of our ffmpeg png to video batch file       
+    # Method to set the file name based on directory, name, count and extension in support of our ffmpeg png to video batch file       
     def setFileName(self):
         self.fullFileName = self.fileDir + self.fileName + '%05d' % self.fileCount + self.fileExt
     
-    # get the current full file name 
+    # Method to get the current full file name 
     def getFileName(self):
         return self.fullFileName
     
-    # write multiple copies of the same png image in support of ffmpeg png to video batch file
+    # Method to write multiple copies of the same png image in support of ffmpeg png to video batch file
     def updateGraph(self):
         for i in range(0, self.vidFrames):
             self.fileCount += 1
@@ -181,35 +225,56 @@ class visualizeTree(object):
 
 # Depth First Search: Start at root followed by all nodes on left followed by right.
 # Uses a Queue: First in First out (FIFO)  
-# Creates a graph that is a mirror image of original Binary Tree
-# When find parameter is set to "None", draw the complete tree while searching for next element,
-#  otherwise, skip drawing and just use the queue.insert() feature for searching.
-def DFS(node, queue, draw, find):
+# Updates a graph of a Binary Tree 
+# Unused: find and draw
+def DFS(node, queue, find, draw):
     if node.getRightBranch():
-        if find==None: 
-            draw(str(node), str(node.getRightBranch()))
         queue.insert(0, node.getRightBranch())
     if node.getLeftBranch():
-        if find==None:
-            draw(str(node), str(node.getLeftBranch()))
         queue.insert(0, node.getLeftBranch())   
 
+# Depth First OrderedSearch: Start at root followed nodes on left followed by right,
+#   uses information about balanced tree and element to find to make intelligent search.
+# Uses a Queue: First in First out (FIFO)  
+# Updates a graph of a Binary Tree 
+# Unused: draw              
+def DFSOrdered(node, queue, find, draw):                                                                
+    if node.getRightBranch() and find < str(node.getRightBranch()):
+        queue.insert(0, node.getRightBranch())
+    elif node.getLeftBranch():
+        queue.insert(0, node.getLeftBranch())   
+    elif node.getRightBranch():
+        queue.insert(0, node.getRightBranch())
+        
 # Breadth First Search: Start at root followed by each child from left to right
 # Uses a Stack: Last in First out (LIFO)    
-# Creates a graph of a Binary Tree 
-# When find parameter is set to "None", draw the complete tree while searching for next element,
-#  otherwise, skip drawing and just use the stack.append() feature for searching.
-def BFS(node, stack, draw, find):
+# Updates a graph of a Binary Tree 
+# Unused: find and draw
+def BFS(node, stack, find, draw):
     if node.getLeftBranch():
-        if find==None: 
-            draw(str(node), str(node.getLeftBranch()))
         stack.append(node.getLeftBranch())       
     if node.getRightBranch():
-        if find==None: 
-            draw(str(node), str(node.getRightBranch()))
-        stack.append(node.getRightBranch())                              
+        stack.append(node.getRightBranch())          
 
-                
+# Sketch complete tree
+# Input: node, stack
+# Output: graph, edge, and node elements
+# Unused: find
+def sketchTree(node, stack, find, draw):
+    if node.getLeftBranch():
+        draw(str(node), str(node.getLeftBranch()))
+        stack.append(node.getLeftBranch()) 
+    elif node.getRightBranch():
+        # draw any missing left branchs as an invisible nodes/edges with dummy unique lables 
+        draw(str(node), ":"+str(node), style_type="invisible")
+    if node.getRightBranch():
+        draw(str(node), str(node.getRightBranch()))
+        stack.append(node.getRightBranch()) 
+    elif node.getLeftBranch():
+        # draw any missing right branchs as an invisible nodes/edges with dummy unique lables 
+        draw(str(node), ";"+str(node), style_type="invisible")         
+        
+                       
 #############################################################
 # Initialize parameters for animation and search tree creation
 #############################################################
@@ -232,9 +297,10 @@ vT = visualizeTree(
 #     graph_type = "graph" (edges drawn as lines)| "digraph" (edges drawn as arrows)
 #     rankdir='LR': draw graph on its side from left to right
 #     ranksep=float_value: rank separation in fraction of an inch 0.75 default, minimum vertical distance between nodes of equal rank
-#     nodesep=float_value: node separation in fraction of an inch 0.25 default, minimum vertical distance between nodes of equal rank
+#     nodesep=float_value: node separation in fraction of an inch 0.25 default, minimum horizontal distance between nodes of equal rank
 #     size = "string_value width, string_value height" in inches. Example: size="4, 8"
-graph = pydot.Dot(graph_type='digraph')
+#     dpi=300 for better image quality, or dpi=96 for default value
+graph = pydot.Dot(graph_type='digraph', nodesep=.75)
 
 # Set default node attributes
 #     Node attributes:
@@ -249,7 +315,7 @@ graph.set_node_defaults(style="filled", fillcolor="grey")
 #     style     = 'dashed' | 'dotted' | 'solid' | 'invis' | 'bold'
 #     arrowhead = 'box' | 'crow' | 'diamond' | 'dot' | 'inv' | 'none' | 'tee' | 'vee'
 #     place a label: label="and back we go again", labelfontcolor="#009933", fontsize="10.0"
-graph.set_edge_defaults(color="blue", arrowhead="vee")
+graph.set_edge_defaults(color="blue", arrowhead="vee", weight="0")
 
 
 ##################################################################
@@ -260,7 +326,7 @@ graph.set_edge_defaults(color="blue", arrowhead="vee")
 #    Use BFS traversal so graph will be created without reflection
 #     produces the initial png files for use in generating a video with the png2mp4.bat program
 #     update vidFrames to make this segment of video 3 seconds longer than the search portion of video 
-vT.searchTree(n5, BFS)
+vT.searchTree(n5, sketchTree)
 vT.setVidFrames(3)
 vT.updateGraph()
 
@@ -268,7 +334,11 @@ vT.updateGraph()
 #     each element of the tree will be highlighted with separate png files generated for the video
 #     update vidFrames to make this segment of video 1 second long for highlight and return to default color
 vT.setVidFrames(1)
-vT.searchTree(n5, DFS, "7")
+
+# select one of these search options:
+##vT.searchTree(n5, DFS, "7")
+vT.searchTree(n5, DFSOrdered, "7")
+##vT.searchTree(n5, BFS, "7")
 
 # extend the final segment of video for 3 more frames (or 3 seconds in video)
 vT.setVidFrames(3)
