@@ -483,17 +483,17 @@ def sketchTree(node, stack, find=None, draw=None):
         draw(str(node), str(node.getLeftBranch()))
         stack.append(node.getLeftBranch()) 
         if node.getRightBranch():
-            # insert invisible thrid node inbetween left and right nodes
+            # insert invisible third node in-between left and right nodes
             draw(str(node), ":"+str(node), style_type="invisible")
     elif node.getRightBranch():
-        # draw any missing left branchs as invisible nodes/edges with dummy unique lables 
+        # draw any missing left branches as invisible nodes/edges with dummy unique labels 
         draw(str(node), ":"+str(node), style_type="invisible")
     if node.getRightBranch():
         draw(str(node), str(node.getRightBranch()))
         stack.append(node.getRightBranch())      
     elif node.getLeftBranch():
-        # draw any missing right branchs as invisible nodes/edges with dummy unique lables 
-        draw(str(node), ";"+str(node), style_type="invisible") 
+        # draw any missing right branches as invisible nodes/edges with dummy unique labels 
+        draw(str(node), ";"+str(node), style_type="invisible")
                 
         
                        
