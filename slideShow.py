@@ -9,7 +9,7 @@ File: slideShow.py
     MIT License, Copyright (c) 2013, Ron Fredericks
     Free to use following these terms: http://opensource.org/licenses/MIT  
 
- Revision 3: 1/5/2014
+ Revision 4: under development
  
 ################################################
 # Class slideShow
@@ -44,6 +44,9 @@ import time
 #   Rev 3: 1/4/2014
 #       1) Create (this) slideShow.py module to clarify and shorten original project code.
 #       2) Turn single image display into slideShow() class to display multiple images.
+#   Rev 3a: 1/6/2014
+#       1) Improve clarity of idle loop
+#       2) Improve clarity of performance display in main playback loop
 
 
 class slideShow(object):
@@ -59,9 +62,12 @@ class slideShow(object):
         self.testPerformance = False        
                
         # Polling loop controls...          
-        self.speedList = [.01, .05, .1, .35, .5, 1., 2.] 
-        self.speedPointerDefault = 3
-        self.idleTimeSlice = .05     # Maximum time slice between Tkinter updates.
+        self.speedList = [.01, .05, .1, .35, .5, 1., 2.]  # A sorted list of wait times between images to play during a slide show
+        self.speedPointerDefault = 3                      # The default wait time (during startup and after a reset) index within speedList[]. 
+                                                          #   Recommended setting (integer): len(speedList)/2
+        self.idleTimeSlice = .01/2.1                      # Idle loop time slice between Tkinter updates. 
+                                                          #   Recommend setting based on Nyquist Interval (float): min(.1, speedList[0]/2.1)
+                                                          #   and the need for python code associated with button activity to be responsive to user.
         
         # Button colors...
         self.bg_color_f = "#ccffff"  # Background color for buttons.
@@ -145,7 +151,10 @@ class slideShow(object):
     def updateSpeedButtons(self):
         # Helper function for "faster" and "slower" buttons to display correct text with each button.
         self.measureValid = False
-        self.Speed.configure(text = '{:7.2f}'.format(self.setTime))
+        tmpText = '{:7.2f}'.format(self.setTime)
+        if self.testPerformance == True:
+            print "Update time:", tmpText          
+        self.Speed.configure(text = tmpText)
         if self.speedPointerCurrent == len(self.speedList)-1:
             self.Slower.configure(text = 'Slowest') 
         else:
@@ -291,15 +300,10 @@ class slideShow(object):
                 startMeasureTime = time.clock()
                 self.measureValid = True
             
-            # Exit slide show if a quit button was pressed.
+            # Exit slide show if a quit button or exit window button was pressed.
             if self.closeViewer:
                 break
-            
-            # Fix coordination issue during break between play and idle loops when reset button pressed, with a "second" reset.
-            if self.resetJustHappened:
-                self.doReset()
-                self.resetJustHappened = False
-                
+                        
             # Display an image.
             f = self.playList[self.imageCount]
             image = Image.open(f)
@@ -318,14 +322,17 @@ class slideShow(object):
             idleLoopTimeInit = time.clock() 
             while True:
                 # Idle polling loop. Wait for user controls, ellapsed time to next image, or end of slide show.
-        
+                
+                # update TK graphics thread.
                 self.rootTk.update()
+                
                 # Exit idle loop on quit/close
                 if self.closeViewer:
                     break              
                 # Exit idle loop on reset
                 if self.resetJustHappened:
                     break
+                    
                 # Skip idle loop on initial image.
                 if self.playFlag:
                     if self.imageCount == 0 and not self.reverseFlag:
@@ -335,12 +342,12 @@ class slideShow(object):
                         self.measureValid = False
                         break
                     else: 
-                        # Update graphics display at least every idleTimeSlice seconds, even when we want to delay for a longer period of time.                                     
-                        time.sleep(self.idleTimeSlice)
                         if time.clock() - idleLoopTimeInit > self.setTime:
                             # Re-initialize wait time unless playback is underway.        
                             idleLoopTimeInit = time.clock()
-                            break                          
+                            break
+                        # Update graphics display at least every idleTimeSlice seconds, even when we want to delay for a longer period of time.                                     
+                        time.sleep(self.idleTimeSlice)                                                      
                 
             if self.imageCount >= self.imageCountMax and not self.reverseFlag:
                 # Stop normal playback, update play/pause button text, and wait in a loop.
@@ -354,12 +361,15 @@ class slideShow(object):
                 # Toogle reverse playback so the user can play the png images in forward direction.
                 self.toogleReverse()
                             
-            else:
+            elif not self.resetJustHappened:
                 # Normal playback by incrementing/decrementing the png image to display.
                 if self.reverseFlag:
                     self.imageCount -= 1
                 else:
                     self.imageCount += 1
+            else:
+                # clear reset flag and return to main playback loop with all attributes reset
+                self.resetJustHappened = False                    
         
     def initPrivateProps(self):                             
         # Private attributes for play loop and interactive button management.                             
