@@ -44,7 +44,7 @@ import time
 #   Rev 3: 1/4/2014
 #       1) Create (this) slideShow.py module to clarify and shorten original project code.
 #       2) Turn single image display into slideShow() class to display multiple images.
-#   Rev 3a: 1/6/2014
+#   Rev 3a: 1/8/2014
 #       1) Improve clarity of idle loop
 #       2) Improve clarity of performance display in main playback loop
 
@@ -61,12 +61,13 @@ class slideShow(object):
         # Activate (set True) to display performance of main timing loop to screen (standard output).
         self.testPerformance = False        
                
-        # Polling loop controls...          
-        self.speedList = [.01, .05, .1, .35, .5, 1., 2.]  # A sorted list of wait times between images to play during a slide show
+        # Polling loop controls for playSlides() method...          
+        self.speedList = [.01, .05, .1, .35, .5, 1., 2.]  # A sorted list of wait times between images to play during a slide show,
+                                                          #   where speedList pointer controlled by "Faster" and "Slower" buttons.
         self.speedPointerDefault = 3                      # The default wait time (during startup and after a reset) index within speedList[]. 
                                                           #   Recommended setting (integer): len(speedList)/2
         self.idleTimeSlice = .01/2.1                      # Idle loop time slice between Tkinter updates. 
-                                                          #   Recommend setting based on Nyquist Interval (float): min(.1, speedList[0]/2.1)
+                                                          #   Recommend setting based on Nyquist Interval (float): min(.1, speedList[0]/2.1),
                                                           #   and the need for python code associated with button activity to be responsive to user.
         
         # Button colors...
@@ -81,9 +82,9 @@ class slideShow(object):
                                      
         # Image scaling to fit within monitor...
         self.w_screen = None         # Width of screen: use None for auto-detection and auto-scaling, 
-                                     #   otherwise set to maximum png width in pixels, plus about 10% for boarders.
+                                     #   otherwise set to maximum png width in pixels plus 20 for borders (controller width only takes 420).
         self.h_screen = None         # Height of screen: use None for auto-detection and auto-scaling, 
-                                     #   otherwise set to maximum png height in pixels, plus about 15% for boarders, title bar, and buttons.                
+                                     #   otherwise set to maximum png height in pixels plus 70 for borders, title bar, and buttons (controller height only takes 66).                
         
     def setImageScaling(self, wMax, hMax):
         # Set maximum width and height values in pixels for png images. 
@@ -197,14 +198,15 @@ class slideShow(object):
         
         # Get screen size. Leave some room for boarders and buttons, use float values for scale calculations.
         if not self.w_screen:
-            self.w_screen = self.rootTk.winfo_screenwidth() * .9
+            self.w_screen = self.rootTk.winfo_screenwidth() - 20
             
         if not self.h_screen:
-            self.h_screen = self.rootTk.winfo_screenheight() * .9
+            self.h_screen = self.rootTk.winfo_screenheight() - 70
         # Get width, height, and then initialize display using initial png image in sequence
         image = Image.open(self.playList[0])
         w = image.size[0]
         h = image.size[1]
+        
         scaleFactorW = 1.
         scaleFactorH = 1.
         if w > self.w_screen:
@@ -292,7 +294,7 @@ class slideShow(object):
         startMeasureTime = 0.  # measureValid will is initialized to False during doReset()
         
         # Main polling loop.
-        while True:
+        while True:          
             if self.testPerformance == True:
                 if self.measureValid:
                     deltaTime = time.clock() - startMeasureTime
@@ -312,11 +314,15 @@ class slideShow(object):
             if self.imageCount % 2 == 0:
                 tkpi = ImageTk.PhotoImage(image)        
                 label_image = Tkinter.Label(self.rootTk, image=tkpi, relief="sunken")
-                label_image.grid(row=0, columnspan=6) 
+                label_image.grid(row=0, columnspan=6)              
             else:
                 tkpi2 = ImageTk.PhotoImage(image)        
                 label_image2 = Tkinter.Label(self.rootTk, image=tkpi2, relief="sunken")
                 label_image2.grid(row=0, columnspan=6)
+            self.rootTk.update()             
+            print "root geometry", (self.rootTk.winfo_geometry())
+            print "faster geometry", (self.Faster.winfo_geometry())
+
             
             # Initialize wait time.        
             idleLoopTimeInit = time.clock() 
