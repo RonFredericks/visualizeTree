@@ -9,13 +9,13 @@ File: slideShow.py
     MIT License, Copyright (c) 2013, Ron Fredericks
     Free to use following these terms: http://opensource.org/licenses/MIT  
 
- Revision 4: under development
+
  
 ################################################
 # Class slideShow
 ################################################
 
-Animate a sequence of images in a TK window                          
+Animate a sequence of images in a TK window, assumes all images are the same size.                          
 
 Public methods: 
     slideShow(rootTk)  - instantiate slide show class
@@ -44,7 +44,7 @@ import time
 #   Rev 3: 1/4/2014
 #       1) Create (this) slideShow.py module to clarify and shorten original project code.
 #       2) Turn single image display into slideShow() class to display multiple images.
-#   Rev 3a: 1/8/2014
+#   Rev 3a: 1/10/2014
 #       1) Improve clarity of idle loop
 #       2) Improve clarity of performance display in main playback loop
 
@@ -320,9 +320,6 @@ class slideShow(object):
                 label_image2 = Tkinter.Label(self.rootTk, image=tkpi2, relief="sunken")
                 label_image2.grid(row=0, columnspan=6)
             self.rootTk.update()             
-            print "root geometry", (self.rootTk.winfo_geometry())
-            print "faster geometry", (self.Faster.winfo_geometry())
-
             
             # Initialize wait time.        
             idleLoopTimeInit = time.clock() 
